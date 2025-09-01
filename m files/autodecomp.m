@@ -7,18 +7,36 @@ function autodecomp ()
 % For copying permissions see license.txt.
 % email: emglab@emglab.net
 
-    global CURR DECOMP SETS
+% Modified by Pranav Mamidanna to allow for trusted units only mode
+
+    global CURR DECOMP SETS EMGLAB
 
     currcomp = CURR.compare;
     emgcompare ('compare', 0);
+    
+    % Always run autoident for existing units
     autoident;
+    
     [t0, t1] = whattime (SETS.firing);
     sig = emgsignal (t0, t1);
     resid = emgresidual (t0, t1);
     n_orig = DECOMP.nunits;
     thresh = getthreshold (resid);
-    [slist, se90] = autodetect (sig, resid, thresh);
-    slist = automerge (sig, slist, se90);
+    
+    % Check if we're in trusted units only mode
+    trusted_only = false;
+    if isfield(EMGLAB, 'trusted_units_only')
+        trusted_only = EMGLAB.trusted_units_only;
+    end
+    
+    % Only detect new units if not in trusted mode
+    if ~trusted_only
+        [slist, se90] = autodetect (sig, resid, thresh);
+        slist = automerge (sig, slist, se90);
+    else
+        slist = [];
+        se90 = 0;
+    end
 
     if ~isempty (slist);
         sslist = [emgslist(0, t0, t1); slist(:,1), slist(:,2)+n_orig];
@@ -45,4 +63,5 @@ function autodecomp ()
 
     end;
     emgcompare ('compare', currcomp);
+    emgplot ('info');
 
